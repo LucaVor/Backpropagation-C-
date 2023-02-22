@@ -54,7 +54,14 @@ namespace ChessAgain.NeuralNetwork
         }
         public double GetRandomWeight()
         {
-            return Math.Pow((((rand.NextDouble())) * 2 - 1), 14) * 1;
+            double weight = Math.Pow(rand.NextDouble(), 1);
+
+            if (rand.NextDouble() > 0.5)
+            {
+                weight *= -1;
+            }
+
+            return weight;
         }
 
         public void AdjustWeight(int x, int y, double value)

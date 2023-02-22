@@ -13,22 +13,32 @@ namespace ChessAgain.NeuralNetwork
 
         public static double Activate(double x)
         {
-            return Linear(x);
+            return Linear2(x);
         }
 
         public static double Derivative(double x)
         {
-            return LinearDeriv(x);
+            return Linear2Deriv(x);
+        }
+
+        public static double Linear2(double x)
+        {
+            return x * 0.2;
+        }
+
+        public static double Linear2Deriv(double x)
+        {
+            return 0.2;
         }
 
         public static double Custom(double x)
         {
-            return (120 / (1 + Math.Pow(e, -0.2 * x))) - 60;
+            return (200 / (1 + Math.Pow(e, -0.2 * x))) - 100;
         }
 
         public static double CustomDeriv(double x)
         {
-            return ((24*Math.Pow(e, -0.2 * x))/Math.Pow((1 + Math.Pow(e, -0.2 * x)), 2));
+            return ((40*Math.Pow(e, -0.2 * x))/Math.Pow((1 + Math.Pow(e, -0.2 * x)), 2));
         }
 
         public static double TanH(double x)

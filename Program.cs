@@ -19,7 +19,7 @@ namespace ChessAgain
             List<DataPoint> currentBatch = new List<DataPoint>();
             List<DataPoint> totalData = new List<DataPoint>();
 
-            const int BATCH_SIZE = 2048;
+            const int BATCH_SIZE = 1024;
 
             for (int i = 0; i < 1; i += 1)
             {
@@ -48,7 +48,7 @@ namespace ChessAgain
             int inputCount = lichessDataBatches[0][0].inputs.Length;
             int outputCount = lichessDataBatches[0][0].desiredOutputs.Length;
 
-            Network network = new Network(inputCount, 256, 128, 32, outputCount);
+            Network network = new Network(inputCount, 256, 256, 128, outputCount);
 
             double recentCost = 100;
             int epoch = 0;
@@ -56,14 +56,19 @@ namespace ChessAgain
             while (recentCost > 0.01)
             {
                 var c_batch = lichessDataBatches[epoch % lichessDataBatches.Count];
-                double dynLearn = 1E-07;
+                double dynLearn = 1E-02;
 
                 network.TrainDerivative(c_batch, dynLearn);
                 double new_cost = network.GetCost(c_batch);
 
                 recentCost = new_cost;
 
-                if (epoch % 10 == 0)
+                if (epoch % 1 == 0)
+                {
+                    Console.WriteLine("Finished Epoch " + epoch + " with cost " + recentCost);
+                }
+
+                if (epoch % 5 == 0)
                 {
                     Console.WriteLine("Total Cost: " + network.GetCost(totalData));
                     network.Serialize();
