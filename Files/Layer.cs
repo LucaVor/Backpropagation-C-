@@ -7,6 +7,19 @@ using System.Threading.Tasks;
 
 namespace ChessAgain.NeuralNetwork
 {
+    [System.Serializable]
+    public class DeserializedLayer
+    {
+        public List<double> nodes { get; set;}
+        public List<double> unactivatedNodes { get; set; }
+        public List<double> biases { get; set;}
+        public List<List<double>> outgoingWeights { get; set;}
+        public List<double> gradient_B { get; set;}
+        public List<List<double>> gradient_W { get; set;}
+        public int layerLen { get; set;}
+        public int nLayerLen { get; set;}
+    }
+
     public class Layer
     {
         public double[] nodes;
@@ -52,9 +65,38 @@ namespace ChessAgain.NeuralNetwork
             layerLen = nodes.Length;
             nLayerLen = nextSize;
         }
+
+        public void Load(DeserializedLayer layerBase)
+        {
+            this.nodes = layerBase.nodes.ToArray();
+            this.unactivatedNodes = layerBase.unactivatedNodes.ToArray();
+            this.biases = layerBase.biases.ToArray();
+
+            for (int x = 0; x < this.outgoingWeights.GetLength(0); x += 1)
+            {
+                for (int y = 0; y < this.outgoingWeights.GetLength(1); y += 1)
+                {
+                    this.outgoingWeights[x, y] = layerBase.outgoingWeights[x][y];
+                    this.gradient_W[x,y] = layerBase.gradient_W[x][y];
+                }
+            }
+
+            this.gradient_B = layerBase.gradient_B.ToArray();
+
+            this.layerLen = layerBase.layerLen;
+            this.nLayerLen = layerBase.nLayerLen;
+        }
+
         public double GetRandomWeight()
         {
-            return Math.Pow((((rand.NextDouble())) * 2 - 1), 14) * 1;
+            double weight = Math.Pow(rand.NextDouble(), 1);
+
+            if (rand.NextDouble() > 0.5)
+            {
+                weight *= -1;
+            }
+
+            return weight;
         }
 
         public void AdjustWeight(int x, int y, double value)

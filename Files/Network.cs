@@ -9,11 +9,19 @@ using Newtonsoft.Json;
 
 namespace ChessAgain.NeuralNetwork
 {
+    [System.Serializable]
+    public class DeserializedNetwork
+    {
+        public List<DeserializedLayer> layers {get; set;}
+        public int numLayers {get; set;}
+        public List<int> networkSize { get; set;  }
+    }
+
     public class Network
     {
         public List<Layer> layers;
-        int numLayers;
-        int[] networkSize;
+        public int numLayers;
+        public int[] networkSize;
 
         public Network(params int[] networkSize)
         {
@@ -30,6 +38,14 @@ namespace ChessAgain.NeuralNetwork
 
             numLayers = layers.Count;
             this.networkSize = networkSize;
+        }
+
+        public Network(DeserializedNetwork networkBase) : this(networkBase.networkSize.ToArray())
+        {
+            for (int i = 0; i < layers.Count; i += 1)
+            {
+                layers[i].Load(networkBase.layers[i]);
+            }
         }
 
         public double[] Evaluate(double[] inputs)
@@ -163,7 +179,7 @@ namespace ChessAgain.NeuralNetwork
                 cost += GetCost(dataPoint.inputs, dataPoint.desiredOutputs);
             }
 
-            return cost / dataPoints.Count;
+            return cost;
         }
 
         public double GetCost(double[] inputs, double[] desiredOutputs)
