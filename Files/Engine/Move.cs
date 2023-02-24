@@ -13,6 +13,7 @@ namespace ChessAgain.Engine
         KingCastle,
         QueenCastle,
         Promotion,
+        PromotionCapture,
         DoublePawnPush,
         EnPassant
     }
@@ -30,11 +31,30 @@ namespace ChessAgain.Engine
         DownLeft
     }
 
-    public struct MoveData
+    public class MoveData
     {
         public int castlingRights;
         public int enPassantSquare;
         public int quietMoves;
+
+        public ulong whiteBitboard;
+        public ulong blackBitboard;
+
+        public bool IsEqual(MoveData rhs)
+        {
+            if (this is null)
+            {
+                if (rhs is null)
+                {
+                    return true;
+                }
+
+                // Only the left side is null.
+                return false;
+            }
+            // Equals handles case of null on right side.
+            return castlingRights == rhs.castlingRights && enPassantSquare == rhs.enPassantSquare && quietMoves == rhs.quietMoves && whiteBitboard == rhs.whiteBitboard && blackBitboard == rhs.blackBitboard;
+        }
     }
 
     public struct Pin
@@ -63,6 +83,31 @@ namespace ChessAgain.Engine
         public static Pin MakePin(int piecePinning, ulong pinLine)
         {
             return new Pin() { piecePinning = piecePinning, pinLine = pinLine };
+        }
+
+        public static Move Copy(Move move)
+        {
+            return new Move()
+            {
+                fromSqr = move.fromSqr,
+                toSqr = move.toSqr,
+                moveFlag = move.moveFlag,
+                promotionPiece = move.promotionPiece,
+                pieceCaptured = move.pieceCaptured,
+                pieceMoved = move.pieceMoved,
+            };
+        }
+
+        public override string ToString()
+        {
+            string str = PreProcess.squareNames[fromSqr] + PreProcess.squareNames[toSqr];
+
+            if (moveFlag == MoveFlag.Promotion || moveFlag == MoveFlag.PromotionCapture)
+            {
+                str += Board.characters[promotionPiece].ToLower();
+            }
+
+            return str + " " + moveFlag;
         }
     }
 }

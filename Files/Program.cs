@@ -56,7 +56,133 @@ namespace ChessAgain
 
             return inputs;
         }
+
+        public static string Join<T>(List<T> values)
+        {
+            string result = "[";
+
+            for (int i = 0; i < values.Count; i++)
+            {
+                result += values[i].ToString();
+
+                if (i == values.Count - 1)
+                {
+                    result += "]";
+                } else
+                {
+                    result += ", ";
+                }
+            }
+
+            return result;
+        }
+
+        public static Board board;
+
+        static int Perft(int depth, int distanceFromPly = 0)
+        {
+            List<Move> moves = board.GenerateLegalMoves(board.whiteMove ? 0 : 1);
+
+            if (depth == 1)
+            {
+                //Console.WriteLine(Join<string>(parentMoves));
+                return moves.Count;
+            }
+
+            int total = 0;
+
+            foreach (Move move in moves)
+            {
+                MoveData moveData = board.MakeMove(move);
+                int subCount = Perft(depth - 1, distanceFromPly + 1);
+                total += subCount;
+
+                if (distanceFromPly == 0)
+                {
+                    Console.WriteLine(move.ToString().Split(' ')[0] + " : " + subCount);
+                }
+
+                board.UnmakeMove(move, moveData);
+            }
+
+            return total;
+        }
+
+        static int Search(int depth)
+        {
+            if (depth == 0)
+            {
+                return 1;
+            }
+
+            List<Move> allLegalMoves = board.GenerateLegalMoves(board.whiteMove ? 0 : 1).ToList();
+            int resulting = 0;
+
+            foreach(Move startingMove in allLegalMoves)
+            {
+                MoveData mData = board.MakeMove(startingMove);
+                MoveData copy = JsonConvert.DeserializeObject<MoveData>(JsonConvert.SerializeObject(mData));
+
+                ulong wb = board.sideBitboards[0];
+                ulong bb = board.sideBitboards[1];
+
+                //board.DisplayBoard();
+                int subCount = Search(depth - 1);
+                resulting += subCount;
+
+                if (depth == 3)
+                {
+                    Console.WriteLine("Ayo?");
+                    Console.WriteLine(startingMove.ToString() + " : " + subCount);
+                }
+
+                board.sideBitboards = new ulong[] { wb, bb };
+
+                board.UnmakeMove(startingMove, mData);
+
+                //board.DisplayBoard();
+            }
+
+            return resulting;
+        }
+
         static void Main(string[] args)
+        {
+            PreProcess.Init();
+
+            board = new Board("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+
+            List<Move> allMoves = board.GenerateLegalMoves(board.whiteMove ? 0 : 1);
+
+            //board.whiteMove = true;
+            //board.MakeMove(Move.CreateMove(PreProcess.nameToSquare["e1"], PreProcess.nameToSquare["d1"], MoveFlag.None, Board.kingIndex));
+            //board.MakeMove(Move.CreateMove(PreProcess.nameToSquare["h3"], PreProcess.nameToSquare["g2"], MoveFlag.Capture, Board.pawnIndex, -1, 0));
+            //board.MakeMove(Move.CreateMove(PreProcess.nameToSquare["c3"], PreProcess.nameToSquare["a4"], MoveFlag.None, Board.knightIndex));
+            //board.MakeMove(Move.CreateMove(PreProcess.nameToSquare["e8"], PreProcess.nameToSquare["d8"], MoveFlag.None, Board.kingIndex));
+            //board.MakeMove(Move.CreateMove(PreProcess.nameToSquare["d5"], PreProcess.nameToSquare["d6"], MoveFlag.None, Board.pawnIndex));
+
+            board.DisplayBoard();
+
+            var watch = new System.Diagnostics.Stopwatch();
+            watch.Start();
+
+            int result = Perft(6);
+
+            watch.Stop();
+
+            Console.WriteLine(result + $". Took {watch.ElapsedMilliseconds}ms.");
+            //List<Move> sd = board.GenerateLegalMoves(board.whiteMove ? 0 : 1);
+            ////List<Move> sd = PreProcess.pawnMoves[1, PreProcess.nameToSquare["g2"]];
+            //foreach (Move fg in sd)
+            //{
+            //    Console.WriteLine(fg.ToString().Split(' ')[0] + " : " + 1);
+            //}
+            //Console.WriteLine(sd.Count);
+
+            Console.ReadLine();
+        }
+
+        static void MainTest(string[] args)
         {
             PreProcess.Init();
 
@@ -96,6 +222,7 @@ namespace ChessAgain
                 Console.WriteLine(joinedString);
 
                 string moveStr = Console.ReadLine();
+
                 string from = (moveStr[0].ToString() + moveStr[1].ToString()).ToString();
                 string to = (moveStr[2].ToString() + moveStr[3].ToString()).ToString();
 

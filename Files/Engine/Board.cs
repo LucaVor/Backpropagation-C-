@@ -37,16 +37,12 @@ namespace ChessAgain.Engine
             "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"
         };
 
-        private string[] characters = new string[]
+        public static string[] characters = new string[]
         {
             "P", "N", "B", "R", "Q", "K"
         };
 
         #endregion
-
-        public List<Move> legalMoves = new List<Move>();
-        public List<Move> psuedoLegal = new List<Move>();
-        public List<Move> psudeo = new List<Move>();
 
         #region Member Variables
         public bool whiteMove = true;
@@ -91,10 +87,10 @@ namespace ChessAgain.Engine
         {
             board = new Piece[,]{
                 {
-                    new Piece(this, 0), new Piece(this, 0), new Piece(this, 0), new Piece(this, 0), new Piece(this, 0), new Piece(this, 0)
+                    new Piece(this, 0, pawnIndex), new Piece(this, 0, knightIndex), new Piece(this, 0, bishopIndex), new Piece(this, 0, rookIndex), new Piece(this, 0, queenIndex), new Piece(this, 0, kingIndex)
                 }, 
                 {
-                    new Piece(this, 1), new Piece(this, 1), new Piece(this, 1), new Piece(this, 1), new Piece(this, 1), new Piece(this, 1)
+                    new Piece(this, 1, pawnIndex), new Piece(this, 1, knightIndex), new Piece(this, 1, bishopIndex), new Piece(this, 1, rookIndex), new Piece(this, 1, queenIndex), new Piece(this, 1, kingIndex)
                 }
             };
 
@@ -103,6 +99,15 @@ namespace ChessAgain.Engine
 
         public Board(string fen)
         {
+            board = new Piece[,]{
+                {
+                    new Piece(this, 0, pawnIndex), new Piece(this, 0, knightIndex), new Piece(this, 0, bishopIndex), new Piece(this, 0, rookIndex), new Piece(this, 0, queenIndex), new Piece(this, 0, kingIndex)
+                },
+                {
+                    new Piece(this, 1, pawnIndex), new Piece(this, 1, knightIndex), new Piece(this, 1, bishopIndex), new Piece(this, 1, rookIndex), new Piece(this, 1, queenIndex), new Piece(this, 1, kingIndex)
+                }
+            };
+
             LoadForsyth(fen);
         }
 
@@ -112,7 +117,9 @@ namespace ChessAgain.Engine
 
             moveData.castlingRights = castlingRights;
             moveData.enPassantSquare = enPassantSquare;
-            moveData.quietMoves = quietMoves;
+            moveData.quietMoves = quietMoveCount;
+            moveData.whiteBitboard = sideBitboards[0];
+            moveData.blackBitboard = sideBitboards[1];
 
             int sideToMove = whiteMove ? 0 : 1;
             int otherSide = 1 - sideToMove;
@@ -127,6 +134,11 @@ namespace ChessAgain.Engine
             if (move.moveFlag == MoveFlag.Capture)
             {
                 quietMoveCount = 0;
+
+                if (move.pieceCaptured == -1)
+                {
+                    DisplayBoard();
+                }
 
                 board[otherSide, move.pieceCaptured].RemovePieceAt(move.toSqr);
 
@@ -149,6 +161,13 @@ namespace ChessAgain.Engine
                 board[sideToMove, move.promotionPiece].AddPieceAt(move.toSqr);
             }
 
+            if (move.moveFlag == MoveFlag.PromotionCapture)
+            {
+                board[sideToMove, pawnIndex].RemovePieceAt(move.toSqr);
+                board[otherSide, move.pieceCaptured].RemovePieceAt(move.toSqr);
+                board[sideToMove, move.promotionPiece].AddPieceAt(move.toSqr);
+            }
+
             if (move.moveFlag == MoveFlag.EnPassant)
             {
                 board[otherSide, pawnIndex].RemovePieceAt(move.toSqr + down);
@@ -157,13 +176,13 @@ namespace ChessAgain.Engine
             if (move.moveFlag == MoveFlag.KingCastle)
             {
                 board[sideToMove, rookIndex].RemovePieceAt(kingRooks[sideToMove]);
-                board[sideToMove, rookIndex].RemovePieceAt(move.toSqr - 1);
+                board[sideToMove, rookIndex].AddPieceAt(move.toSqr - 1);
             }
 
             if (move.moveFlag == MoveFlag.QueenCastle)
             {
                 board[sideToMove, rookIndex].RemovePieceAt(queenRooks[sideToMove]);
-                board[sideToMove, rookIndex].RemovePieceAt(move.toSqr + 1);
+                board[sideToMove, rookIndex].AddPieceAt(move.toSqr + 1);
             }
 
             enPassantSquare = -1;
@@ -203,7 +222,59 @@ namespace ChessAgain.Engine
 
         public void UnmakeMove(Move move, MoveData moveData)
         {
+            whiteMove = !whiteMove;
 
+            int sideToMove = whiteMove ? 0 : 1;
+            int otherSide = 1 - sideToMove;
+
+            int down = whiteMove ? -8 : 8;
+
+            castlingRights = moveData.castlingRights;
+            enPassantSquare = moveData.enPassantSquare;
+            quietMoveCount = moveData.quietMoves;
+
+            board[sideToMove, move.pieceMoved].AddPieceAt(move.fromSqr);
+
+            if (move.moveFlag != MoveFlag.Promotion && move.moveFlag != MoveFlag.PromotionCapture)
+            {
+                board[sideToMove, move.pieceMoved].RemovePieceAt(move.toSqr);
+            }
+
+            if (move.moveFlag == MoveFlag.Capture)
+            {
+                board[otherSide, move.pieceCaptured].AddPieceAt(move.toSqr);
+            }
+
+            if (move.moveFlag == MoveFlag.Promotion)
+            {
+                //board[sideToMove, pawnIndex].AddPieceAt(move.toSqr);
+                board[sideToMove, move.promotionPiece].RemovePieceAt(move.toSqr);
+            }
+
+            if (move.moveFlag == MoveFlag.PromotionCapture)
+            {
+                //board[sideToMove, pawnIndex].AddPieceAt(move.toSqr);
+                board[sideToMove, move.promotionPiece].RemovePieceAt(move.toSqr);
+
+                board[otherSide, move.pieceCaptured].AddPieceAt(move.toSqr);
+            }
+
+            if (move.moveFlag == MoveFlag.EnPassant)
+            {
+                board[otherSide, pawnIndex].AddPieceAt(move.toSqr + down);
+            }
+
+            if (move.moveFlag == MoveFlag.KingCastle)
+            {
+                board[sideToMove, rookIndex].AddPieceAt(kingRooks[sideToMove]);
+                board[sideToMove, rookIndex].RemovePieceAt(move.toSqr - 1);
+            }
+
+            if (move.moveFlag == MoveFlag.QueenCastle)
+            {
+                board[sideToMove, rookIndex].AddPieceAt(queenRooks[sideToMove]);
+                board[sideToMove, rookIndex].RemovePieceAt(move.toSqr + 1);
+            }
         }
 
         public int GetPieceFromSquare(int square)
@@ -224,7 +295,39 @@ namespace ChessAgain.Engine
 
         public void LoadForsyth(string fen)
         {
-            fen = fen.Replace("/", "").Replace("\\", "");
+            whiteMove = fen.Split(' ')[1] == "w" ? true : false;
+
+            castlingRights = 0;
+            string castlingRightsStr = fen.Split(' ')[2];
+
+            if (castlingRightsStr.Contains("K"))
+            {
+                castlingRights |= (kingSide & whiteCastle);
+            }
+            if (castlingRightsStr.Contains("Q"))
+            {
+                castlingRights |= (queenSide & whiteCastle);
+            }
+
+            if (castlingRightsStr.Contains("K"))
+            {
+                castlingRights |= (kingSide & blackCastle);
+            }
+            if (castlingRightsStr.Contains("Q"))
+            {
+                castlingRights |= (queenSide & blackCastle);
+            }
+
+            string enPassantSqr = fen.Split(' ')[3];
+
+            if (enPassantSqr != "-")
+            {
+                enPassantSquare = PreProcess.nameToSquare[enPassantSqr];
+            }
+
+            quietMoveCount = int.Parse(fen.Split(' ')[4]);
+
+            fen = fen.Split(' ')[0].Replace("/", "").Replace("\\", "");
 
             int sqrIndexNonRotated = 64;
 
@@ -383,8 +486,8 @@ namespace ChessAgain.Engine
             UInt64 attackedSquares = GetAttackedBitboard(1 - sideToMove, board[sideToMove, kingIndex].piecePositions[0], ref checkerCount, ref pins, ref pinnedPieces, ref checkFilter);
             UInt64 kingSquares = board[sideToMove, kingIndex].rep;
 
-            psudeo = GenerateMoves(sideToMove, ref foundKingMoves, checkerCount >= 2, pins, pinnedPieces, checkFilter, attackedSquares);
-            legalMoves.Clear();
+            List<Move> psudeo = GenerateMoves(sideToMove, ref foundKingMoves, checkerCount >= 2, pins, pinnedPieces, checkFilter, attackedSquares);
+            List<Move> legalMoves = new List<Move>();
 
             bool inCheck = (kingSquares & attackedSquares) > 0;
 
@@ -407,11 +510,12 @@ namespace ChessAgain.Engine
     
         public List<Move> GenerateMoves(int sideToMove, ref bool foundKingMoves, bool skipAfterKing, List<Pin> pins, ulong pinnedPieces, ulong checkFilter, ulong attMask)
         {
-            psuedoLegal.Clear();
+            List<Move> psuedoLegal = new List<Move>();
 
             int otherSide = 1 - sideToMove;
 
-            int upOffset2 = sideToMove == 0 ? 16 : -16;
+            int upOffset = sideToMove == 0 ? 8 : -8;
+            int upOffset2 = upOffset * 2;
             UInt64 combined = sideBitboards[0] | sideBitboards[1];
 
             int sideRights = castlingRights & castleMasks[sideToMove];
@@ -464,14 +568,15 @@ namespace ChessAgain.Engine
 
                         if (enemyAtTo)
                         {
-                            move.moveFlag = MoveFlag.Capture;
+                            Move copiedMove = Move.Copy(move);
+                            copiedMove.moveFlag = MoveFlag.Capture;
 
-                            for (int piece = 0; piece < kingIndex + 1; piece += 1)
+                            for (int piece = 0; piece < kingIndex; piece += 1)
                             {
                                 if (board[otherSide, piece].PieceAt(move.toSqr))
                                 {
-                                    move.pieceCaptured = piece;
-                                    psuedoLegal.Add(move);
+                                    copiedMove.pieceCaptured = piece;
+                                    psuedoLegal.Add(copiedMove);
                                     break;
                                 }
                             }
@@ -523,6 +628,7 @@ namespace ChessAgain.Engine
                 {
                     bool enemyAtTo = (sideBitboards[otherSide] & (one << move.toSqr)) > 0;
                     bool anyAtTo = (combined & (one << move.toSqr)) > 0;
+                    bool friendAtTo = anyAtTo && !enemyAtTo;
 
                     if (useFilter)
                     {
@@ -532,16 +638,37 @@ namespace ChessAgain.Engine
                         }
                     }
 
-                    if (move.moveFlag == MoveFlag.Capture && enemyAtTo)
+                    if (move.moveFlag == MoveFlag.Promotion && !anyAtTo)
                     {
+                        psuedoLegal.Add(move);
+                    }
+
+                    if (move.moveFlag == MoveFlag.PromotionCapture && !friendAtTo && enemyAtTo)
+                    {
+                        Move copiedMove = Move.Copy(move);
+
                         for (int piece = 0; piece < kingIndex + 1; piece += 1)
                         {
                             if (board[otherSide, piece].PieceAt(move.toSqr))
                             {
-                                move.pieceCaptured = piece;
-                                psuedoLegal.Add(move);
+                                copiedMove.pieceCaptured = piece;
+                                psuedoLegal.Add(copiedMove);
                                 break;
+                            }
+                        }
+                    }
 
+                    if (move.moveFlag == MoveFlag.Capture && enemyAtTo)
+                    {
+                        Move copiedMove = Move.Copy(move);
+
+                        for (int piece = 0; piece < kingIndex + 1; piece += 1)
+                        {
+                            if (board[otherSide, piece].PieceAt(move.toSqr))
+                            {
+                                copiedMove.pieceCaptured = piece;
+                                psuedoLegal.Add(copiedMove);
+                                break;
                             }
                         }
                     }
@@ -624,14 +751,15 @@ namespace ChessAgain.Engine
 
                     if(enemyAtTo)
                     {
-                        move.moveFlag = MoveFlag.Capture;
+                        Move copiedMove = Move.Copy(move);
+                        copiedMove.moveFlag = MoveFlag.Capture;
 
-                        for (int piece = 0; piece < kingIndex + 1; piece += 1)
+                        for (int piece = 0; piece < kingIndex; piece += 1)
                         {
                             if (board[otherSide, piece].PieceAt(move.toSqr))
                             {
-                                move.pieceCaptured = piece;
-                                psuedoLegal.Add(move);
+                                copiedMove.pieceCaptured = piece;
+                                psuedoLegal.Add(copiedMove);
                                 break;
                             }
                         }
@@ -660,7 +788,7 @@ namespace ChessAgain.Engine
                     }
                 }
 
-                if (useFilter)
+                if (checkFilter != 0)
                 {
                     if (useFilter)
                         moveFilter &= checkFilter;
@@ -672,7 +800,7 @@ namespace ChessAgain.Engine
 
                 for (int i = 0; i < 4; i += 1)
                 {
-                    List<Move> theoreticalMoves = PreProcess.bishops[bishopSquare,i];
+                    List<Move> theoreticalMoves = PreProcess.bishops[bishopSquare, i];
 
                     foreach (Move move in theoreticalMoves)
                     {
@@ -683,7 +811,7 @@ namespace ChessAgain.Engine
                             break;
                         }
 
-                        if (moveFilter != 0)
+                        if (useFilter)
                         {
                             if (((1ul << move.toSqr) & moveFilter) == 0)
                             {
@@ -695,14 +823,15 @@ namespace ChessAgain.Engine
 
                         if (enemyAtTo)
                         {
-                            move.moveFlag = MoveFlag.Capture;
+                            Move copiedMove = Move.Copy(move);
+                            copiedMove.moveFlag = MoveFlag.Capture;
 
-                            for (int piece = 0; piece < kingIndex + 1; piece += 1)
+                            for (int piece = 0; piece < kingIndex; piece += 1)
                             {
                                 if (board[otherSide, piece].PieceAt(move.toSqr))
                                 {
-                                    move.pieceCaptured = piece;
-                                    psuedoLegal.Add(move);
+                                    copiedMove.pieceCaptured = piece;
+                                    psuedoLegal.Add(copiedMove);
                                     break;
                                 }
                             }
@@ -768,14 +897,15 @@ namespace ChessAgain.Engine
 
                         if (enemyAtTo)
                         {
-                            move.moveFlag = MoveFlag.Capture;
+                            Move copiedMove = Move.Copy(move);
+                            copiedMove.moveFlag = MoveFlag.Capture;
 
-                            for (int piece = 0; piece < kingIndex + 1; piece += 1)
+                            for (int piece = 0; piece < kingIndex; piece += 1)
                             {
                                 if (board[otherSide, piece].PieceAt(move.toSqr))
                                 {
-                                    move.pieceCaptured = piece;
-                                    psuedoLegal.Add(move);
+                                    copiedMove.pieceCaptured = piece;
+                                    psuedoLegal.Add(copiedMove);
                                     break;
                                 }
                             }
@@ -812,6 +942,8 @@ namespace ChessAgain.Engine
                         moveFilter &= checkFilter;
                     else
                         moveFilter |= checkFilter;
+
+                    useFilter = true;
                 }
 
                 for (int i = 0; i < 8; i += 1)
@@ -839,14 +971,15 @@ namespace ChessAgain.Engine
 
                         if (enemyAtTo)
                         {
-                            move.moveFlag = MoveFlag.Capture;
+                            Move copiedMove = Move.Copy(move);
+                            copiedMove.moveFlag = MoveFlag.Capture;
 
-                            for (int piece = 0; piece < kingIndex + 1; piece += 1)
+                            for (int piece = 0; piece < kingIndex; piece += 1)
                             {
                                 if (board[otherSide, piece].PieceAt(move.toSqr))
                                 {
-                                    move.pieceCaptured = piece;
-                                    psuedoLegal.Add(move);
+                                    copiedMove.pieceCaptured = piece;
+                                    psuedoLegal.Add(copiedMove);
                                     break;
                                 }
                             }
@@ -875,7 +1008,12 @@ namespace ChessAgain.Engine
 
                 foreach (Move move in theoretical)
                 {
-                    if (move.toSqr == ekingSquare) { checkerCount++; }
+                    if (move.toSqr == ekingSquare)
+                    {
+                        checkFilter |= (one << move.fromSqr);
+                        checkerCount++;
+                    }
+
                     allMoves |= (one << move.toSqr);
                 }
             }
@@ -886,7 +1024,11 @@ namespace ChessAgain.Engine
 
                 foreach (Move move in theoreticalMoves)
                 {
-                    if (move.toSqr == ekingSquare) { checkerCount++; }
+                    if (move.toSqr == ekingSquare) { 
+                        checkFilter |= (one << move.fromSqr);
+                        checkerCount++; 
+                    }
+
                     allMoves |= (one << move.toSqr);
                 }
             }
@@ -905,7 +1047,7 @@ namespace ChessAgain.Engine
 
             foreach (int bishopSquare in board[sideToMove, bishopIndex].piecePositions)
             {
-                ulong betweenBits = PreProcess.inBetweenBits[bishopSquare, ekingSquare];
+                ulong betweenBits = PreProcess.bishopInBetweenBits[bishopSquare, ekingSquare];
 
                 if (betweenBits != 0)
                 {
@@ -931,6 +1073,7 @@ namespace ChessAgain.Engine
 
                         if (friendAtTo)
                         {
+                            allMoves |= (one << move.toSqr);
                             break;
                         }
 
@@ -951,7 +1094,7 @@ namespace ChessAgain.Engine
 
             foreach (int rookSquare in board[sideToMove, rookIndex].piecePositions)
             {
-                ulong betweenBits = PreProcess.inBetweenBits[rookSquare, ekingSquare];
+                ulong betweenBits = PreProcess.rookInBetweenBits[rookSquare, ekingSquare];
 
                 if (betweenBits != 0)
                 {
@@ -978,6 +1121,7 @@ namespace ChessAgain.Engine
 
                         if (friendAtTo)
                         {
+                            allMoves |= (one << move.toSqr);
                             break;
                         }
 
@@ -998,7 +1142,7 @@ namespace ChessAgain.Engine
 
             foreach (int queenSquare in board[sideToMove, queenIndex].piecePositions)
             {
-                ulong betweenBits = PreProcess.inBetweenBits[queenSquare, ekingSquare];
+                ulong betweenBits = PreProcess.queenInBetweenBits[queenSquare, ekingSquare];
 
                 if (betweenBits != 0)
                 {
@@ -1025,6 +1169,7 @@ namespace ChessAgain.Engine
 
                         if (friendAtTo)
                         {
+                            allMoves |= (one << move.toSqr);
                             break;
                         }
 

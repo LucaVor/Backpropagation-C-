@@ -14,11 +14,13 @@ namespace ChessAgain.Engine
 
         public Board parent;
         public int mySide;
+        public int myIndex;
 
-        public Piece(Board parent, int mySide)
+        public Piece(Board parent, int mySide, int myIndex)
         {
             this.parent = parent;
             this.mySide = mySide;
+            this.myIndex = myIndex; 
         }
 
         public void AddPieceAt(int sqr)
@@ -26,13 +28,21 @@ namespace ChessAgain.Engine
             ulong sqrBitboard = one << sqr;
             rep |= sqrBitboard;
 
-            piecePositions.Add(sqr);
+            if (!piecePositions.Contains(sqr))
+            {
+                piecePositions.Add(sqr);
+            }
 
             parent.sideBitboards[mySide] |= sqrBitboard;
         }
 
         public void RemovePieceAt(int sqr)
         {
+            if (!piecePositions.Contains(sqr))
+            {
+                throw new Exception($"Square not found in position {PreProcess.squareNames[sqr]}. Piece {myIndex}, Side {mySide}");
+            }
+
             piecePositions.Remove(sqr);
 
             ulong sqrBitboard = one << sqr;

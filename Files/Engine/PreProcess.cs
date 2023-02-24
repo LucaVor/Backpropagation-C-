@@ -16,8 +16,10 @@ namespace ChessAgain.Engine
         public static List<Move>[,] bishops = new List<Move>[64,4];
         public static List<Move>[,] rooks = new List<Move>[64,4];
         public static List<Move>[,] queens = new List<Move>[64,8];
-        public static UInt64[,] inBetweenBits = new ulong[64, 64];
-        
+        public static UInt64[,] bishopInBetweenBits = new ulong[64, 64];
+        public static UInt64[,] rookInBetweenBits = new ulong[64, 64];
+        public static UInt64[,] queenInBetweenBits = new ulong[64, 64];
+
         public static string[] squareNames = new string[64];
         public static Dictionary<string, int> nameToSquare = new Dictionary<string, int>();
         public static UInt64 MAX_VALUE = 0;
@@ -69,8 +71,8 @@ namespace ChessAgain.Engine
                 bool firstRank = sqr < 8;
                 bool eighthRank = sqr > 55;
 
-                bool hFile = (sqr + 1) % 8 == 0;
-                bool aFile = sqr % 8 == 0;
+                bool hFile = squareNames[sqr].Contains("h");
+                bool aFile = squareNames[sqr].Contains("a");
 
                 List<Move> whitePawn = new List<Move>();
                 List<Move> blackPawn = new List<Move>();
@@ -81,10 +83,10 @@ namespace ChessAgain.Engine
                 {
                     if (!aFile)
                     {
-                        blackPawn.Add(Move.CreateMove(sqr, sqr - 7, MoveFlag.EnPassant, Board.pawnIndex, 0, Board.pawnIndex));
+                        blackPawn.Add(Move.CreateMove(sqr, sqr - 9, MoveFlag.EnPassant, Board.pawnIndex, 0, Board.pawnIndex));
                     } if (!hFile)
                     {
-                        blackPawn.Add(Move.CreateMove(sqr, sqr - 9, MoveFlag.EnPassant, Board.pawnIndex, 0, Board.pawnIndex));
+                        blackPawn.Add(Move.CreateMove(sqr, sqr - 7, MoveFlag.EnPassant, Board.pawnIndex, 0, Board.pawnIndex));
                     }
                 }
 
@@ -92,31 +94,25 @@ namespace ChessAgain.Engine
                 {
                     if (!aFile)
                     {
-                        whitePawn.Add(Move.CreateMove(sqr, sqr + 9, MoveFlag.EnPassant, Board.pawnIndex, 0, Board.pawnIndex));
+                        whitePawn.Add(Move.CreateMove(sqr, sqr + 7, MoveFlag.EnPassant, Board.pawnIndex, 0, Board.pawnIndex));
                     }
                     if (!hFile)
                     {
-                        whitePawn.Add(Move.CreateMove(sqr, sqr + 7, MoveFlag.EnPassant, Board.pawnIndex, 0, Board.pawnIndex));
+                        whitePawn.Add(Move.CreateMove(sqr, sqr + 9, MoveFlag.EnPassant, Board.pawnIndex, 0, Board.pawnIndex));
                     }
                 }
 
-                if (!eighthRank)
-                {
-                    whitePawn.Add(Move.CreateMove(sqr, sqr + 8, MoveFlag.None, Board.pawnIndex));
-                }
-
-                if (!firstRank)
-                {
-                    blackPawn.Add(Move.CreateMove(sqr, sqr - 8, MoveFlag.None, Board.pawnIndex));
-                }
+                bool whiteProm = false;
+                bool blackProm = false;
 
                 if (secondRank)
                 {
                     whitePawn.Add(Move.CreateMove(sqr, sqr + 16, MoveFlag.DoublePawnPush, Board.pawnIndex));
 
-                    for (int piece = 0; piece < Board.kingIndex + 1; piece += 1)
+                    for (int piece = 1; piece < Board.kingIndex; piece += 1)
                     {
                         blackPawn.Add(Move.CreateMove(sqr, sqr - 8, MoveFlag.Promotion, Board.pawnIndex, piece));
+                        blackProm = true;
                     }
                 }
 
@@ -124,28 +120,81 @@ namespace ChessAgain.Engine
                 {
                     blackPawn.Add(Move.CreateMove(sqr, sqr - 16, MoveFlag.DoublePawnPush, Board.pawnIndex));
 
-                    for (int piece = 0; piece < Board.kingIndex + 1; piece += 1)
+                    for (int piece = 1; piece < Board.kingIndex; piece += 1)
                     {
                         whitePawn.Add(Move.CreateMove(sqr, sqr + 8, MoveFlag.Promotion, Board.pawnIndex, piece));
+                        whiteProm = true;
                     }
+                }
+
+                if (!eighthRank && !whiteProm)
+                {
+                    whitePawn.Add(Move.CreateMove(sqr, sqr + 8, MoveFlag.None, Board.pawnIndex));
+                }
+
+                if (!firstRank && !blackProm)
+                {
+                    blackPawn.Add(Move.CreateMove(sqr, sqr - 8, MoveFlag.None, Board.pawnIndex));
                 }
 
                 if (!hFile)
                 {
-                    whitePawn.Add(Move.CreateMove(sqr, sqr + 7, MoveFlag.Capture, Board.pawnIndex));
-                    blackPawn.Add(Move.CreateMove(sqr, sqr - 9, MoveFlag.Capture, Board.pawnIndex));
+                    if (seventhRank)
+                    {
+                        for (int piece = 1; piece < Board.kingIndex; piece += 1)
+                        {
+                            whitePawn.Add(Move.CreateMove(sqr, sqr + 9, MoveFlag.PromotionCapture, Board.pawnIndex, piece));
+                        }
+                    }
+                    else
+                    {
+                        whitePawn.Add(Move.CreateMove(sqr, sqr + 9, MoveFlag.Capture, Board.pawnIndex));
+                    }
 
-                    whitePawnAtt.Add(Move.CreateMove(sqr, sqr + 7, MoveFlag.Capture, Board.pawnIndex));
-                    blackPawnAtt.Add(Move.CreateMove(sqr, sqr - 9, MoveFlag.Capture, Board.pawnIndex));
+                    if (secondRank)
+                    {
+                        for (int piece = 1; piece < Board.kingIndex; piece += 1)
+                        {
+                            blackPawn.Add(Move.CreateMove(sqr, sqr - 7, MoveFlag.PromotionCapture, Board.pawnIndex, piece));
+                        }
+                    }
+                    else
+                    {
+                        blackPawn.Add(Move.CreateMove(sqr, sqr - 7, MoveFlag.Capture, Board.pawnIndex));
+                    }
+
+                    whitePawnAtt.Add(Move.CreateMove(sqr, sqr + 9, MoveFlag.Capture, Board.pawnIndex));
+                    blackPawnAtt.Add(Move.CreateMove(sqr, sqr - 7, MoveFlag.Capture, Board.pawnIndex));
                 }
 
                 if (!aFile)
                 {
-                    whitePawn.Add(Move.CreateMove(sqr, sqr + 9, MoveFlag.Capture, Board.pawnIndex));
-                    blackPawn.Add(Move.CreateMove(sqr, sqr - 7, MoveFlag.Capture, Board.pawnIndex));
+                    if (seventhRank)
+                    {
+                        for (int piece = 1; piece < Board.kingIndex; piece += 1)
+                        {
+                            whitePawn.Add(Move.CreateMove(sqr, sqr + 7, MoveFlag.PromotionCapture, Board.pawnIndex, piece));
+                        }
+                    }
+                    else
+                    {
+                        whitePawn.Add(Move.CreateMove(sqr, sqr + 7, MoveFlag.Capture, Board.pawnIndex));
+                    }
 
-                    whitePawnAtt.Add(Move.CreateMove(sqr, sqr + 9, MoveFlag.Capture, Board.pawnIndex));
-                    blackPawnAtt.Add(Move.CreateMove(sqr, sqr - 7, MoveFlag.Capture, Board.pawnIndex));
+                    if (secondRank)
+                    {
+                        for (int piece = 1; piece < Board.kingIndex; piece += 1)
+                        {
+                            blackPawn.Add(Move.CreateMove(sqr, sqr - 9, MoveFlag.PromotionCapture, Board.pawnIndex, piece));
+                        }
+                    }
+                    else
+                    {
+                        blackPawn.Add(Move.CreateMove(sqr, sqr - 9, MoveFlag.Capture, Board.pawnIndex));
+                    }
+
+                    whitePawnAtt.Add(Move.CreateMove(sqr, sqr + 7, MoveFlag.Capture, Board.pawnIndex));
+                    blackPawnAtt.Add(Move.CreateMove(sqr, sqr - 9, MoveFlag.Capture, Board.pawnIndex));
                 }
 
                 pawnMoves[0, sqr] = whitePawn;
@@ -250,44 +299,53 @@ namespace ChessAgain.Engine
                     int x = dirOffsets[i, 0];
                     int y = dirOffsets[i, 1];
 
-                    int currSquare = sqr + x + y * 8;
-
                     List<Move> queen = new List<Move>();
                     List<Move> bishop = new List<Move>();
                     List<Move> rook = new List<Move>();
 
-                    while (true)
+                    if ((squareNames[sqr].Contains("a") && x < 0) || (squareNames[sqr].Contains("h") && x > 0))
                     {
+                        queens[sqr, i] = queen;
+
+                        if (i < 4)
+                        {
+                            rooks[sqr, i] = rook;
+                        }
+                        if (i > 3)
+                        {
+                            bishops[sqr, i - 4] = bishop;
+                        }
+                        continue;
+                    }
+
+                    int currSquare = sqr + x + y * 8;
+
+                    while (true)
+                    {   
                         if (currSquare < 0 || currSquare > 63)
                         {
                             break;
                         }
 
-                        if (x < 0)
-                        {
-                            if ((currSquare % 8) > (sqr % 8))
-                            {
-                                break;
-                            }
-                        }
-                        if (x > 0)
-                        {
-                            if ((currSquare % 8) < (sqr % 8))
-                            {
-                                break;
-                            }
-                        }
-
                         queen.Add(Move.CreateMove(sqr, currSquare, MoveFlag.None, Board.queenIndex));
 
-                        if ((Math.Abs(x) == 1 && Math.Abs(y) == 0) || (Math.Abs(x) == 0 && Math.Abs(y) == 1))
+                        if (i < 4)
                         {
                             rook.Add(Move.CreateMove(sqr, currSquare, MoveFlag.None, Board.rookIndex));
                         }
 
-                        if ((Math.Abs(x) == 1 && Math.Abs(y) == 1) || (Math.Abs(x) == 1 && Math.Abs(y) == 1))
+                        if (i > 3)
                         {
                             bishop.Add(Move.CreateMove(sqr, currSquare, MoveFlag.None, Board.bishopIndex));
+                        }
+
+                        if (squareNames[currSquare].Contains("a") && x < 0)
+                        {
+                            break;
+                        }
+                        if (squareNames[currSquare].Contains("h") && x > 0)
+                        {
+                            break;
                         }
 
                         currSquare += (x + y * 8);
@@ -338,7 +396,15 @@ namespace ChessAgain.Engine
 
                         distance += 1;
 
-                        inBetweenBits[sqr, currSquare] = between;
+                        queenInBetweenBits[sqr, currSquare] = between;
+
+                        if (i < 4)
+                        {
+                            rookInBetweenBits[sqr, currSquare] = between;   
+                        } if (i > 3)
+                        {
+                            bishopInBetweenBits[sqr, currSquare] = between;
+                        }
 
                         between |= (1ul << currSquare);
                         currSquare += (x + y * 8);
