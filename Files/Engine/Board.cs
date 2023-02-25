@@ -318,14 +318,20 @@ namespace ChessAgain.Engine
                 castlingRights |= (queenSide & blackCastle);
             }
 
-            string enPassantSqr = fen.Split(' ')[3];
-
-            if (enPassantSqr != "-")
+            try
             {
-                enPassantSquare = PreProcess.nameToSquare[enPassantSqr];
-            }
+                string enPassantSqr = fen.Split(' ')[3];
 
-            quietMoveCount = int.Parse(fen.Split(' ')[4]);
+                if (enPassantSqr != "-")
+                {
+                    enPassantSquare = PreProcess.nameToSquare[enPassantSqr];
+                }
+            } catch(Exception e) { }
+
+            try
+            {
+                quietMoveCount = int.Parse(fen.Split(' ')[4]);
+            } catch(Exception e) { }
 
             fen = fen.Split(' ')[0].Replace("/", "").Replace("\\", "");
 
@@ -474,6 +480,11 @@ namespace ChessAgain.Engine
 
         public List<Move> GenerateLegalMoves(int sideToMove)
         {
+            if (quietMoveCount > 50)
+            {
+                return new List<Move>();
+            }
+
             bool foundKingMoves = false;
 
             int checkerCount = 0;
@@ -620,6 +631,11 @@ namespace ChessAgain.Engine
                         moveFilter |= checkFilter;
 
                     useFilter = true;
+                }
+
+                if (useFilter)
+                {
+                    Console.WriteLine(PreProcess.squareNames[pawnSquare]);
                 }
 
                 List<Move> theoretical = PreProcess.pawnMoves[sideToMove, pawnSquare];
