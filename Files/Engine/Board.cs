@@ -171,6 +171,18 @@ namespace ChessAgain.Engine
                 board[sideToMove, pawnIndex].RemovePieceAt(move.toSqr);
                 board[otherSide, move.pieceCaptured].RemovePieceAt(move.toSqr);
                 board[sideToMove, move.promotionPiece].AddPieceAt(move.toSqr);
+
+                if (move.pieceCaptured == rookIndex)
+                {
+                    if (move.toSqr == kingRooks[otherSide])
+                    {
+                        castlingRights -= (castlingRights & kingSide & castleMasks[otherSide]);
+                    }
+                    if (move.toSqr == queenRooks[otherSide])
+                    {
+                        castlingRights -= (castlingRights & queenSide & castleMasks[otherSide]);
+                    }
+                }
             }
 
             if (move.moveFlag == MoveFlag.EnPassant)
