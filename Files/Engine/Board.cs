@@ -1,10 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Net.Mail;
-using System.Runtime.InteropServices.WindowsRuntime;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace ChessAgain.Engine
 {
@@ -30,7 +25,7 @@ namespace ChessAgain.Engine
 
         public static UInt64 one = 1;
 
-        public static string startingFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
+        public static string startingFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
         private List<string> numbers =
         new List<string>() {
@@ -79,6 +74,16 @@ namespace ChessAgain.Engine
         {
             { (one << 5) | (one << 6), (one << 1) | (one << 2) | (one << 3) },
             { (one << 61) | (one << 62), (one << 57) | (one << 58) | (one << 59) }
+            //{ (one << 5) | (one << 6), (one << 2) | (one << 3) },
+            //{ (one << 61) | (one << 62), (one << 58) | (one << 59) }
+        };
+
+        public static UInt64[,] castleSideAttMasks = new UInt64[,]
+        {
+            //{ (one << 5) | (one << 6), (one << 1) | (one << 2) | (one << 3) },
+            //{ (one << 61) | (one << 62), (one << 57) | (one << 58) | (one << 59) }
+            { (one << 5) | (one << 6), (one << 2) | (one << 3) },
+            { (one << 61) | (one << 62), (one << 58) | (one << 59) }
         };
 
         #endregion
@@ -309,11 +314,11 @@ namespace ChessAgain.Engine
                 castlingRights |= (queenSide & whiteCastle);
             }
 
-            if (castlingRightsStr.Contains("K"))
+            if (castlingRightsStr.Contains("k"))
             {
                 castlingRights |= (kingSide & blackCastle);
             }
-            if (castlingRightsStr.Contains("Q"))
+            if (castlingRightsStr.Contains("q"))
             {
                 castlingRights |= (queenSide & blackCastle);
             }
@@ -494,13 +499,15 @@ namespace ChessAgain.Engine
             ulong pinnedPieces = 0ul;
             ulong checkFilter = 0ul;
 
-            UInt64 attackedSquares = GetAttackedBitboard(1 - sideToMove, board[sideToMove, kingIndex].piecePositions[0], ref checkerCount, ref pins, ref pinnedPieces, ref checkFilter);
+            int checkingPawn = -1;
+
+            UInt64 attackedSquares = GetAttackedBitboard(1 - sideToMove, board[sideToMove, kingIndex].piecePositions[0], ref checkerCount, ref pins, ref pinnedPieces, ref checkFilter, ref checkingPawn);
             UInt64 kingSquares = board[sideToMove, kingIndex].rep;
 
-            List<Move> psudeo = GenerateMoves(sideToMove, ref foundKingMoves, checkerCount >= 2, pins, pinnedPieces, checkFilter, attackedSquares);
-            List<Move> legalMoves = new List<Move>();
-
             bool inCheck = (kingSquares & attackedSquares) > 0;
+
+            List<Move> psudeo = GenerateMoves(sideToMove, ref foundKingMoves, checkerCount >= 2, pins, pinnedPieces, checkFilter, attackedSquares, inCheck, checkingPawn);
+            List<Move> legalMoves = new List<Move>();
 
             foreach (Move move in psudeo)
             {
@@ -519,7 +526,7 @@ namespace ChessAgain.Engine
             return legalMoves;
         }
     
-        public List<Move> GenerateMoves(int sideToMove, ref bool foundKingMoves, bool skipAfterKing, List<Pin> pins, ulong pinnedPieces, ulong checkFilter, ulong attMask)
+        public List<Move> GenerateMoves(int sideToMove, ref bool foundKingMoves, bool skipAfterKing, List<Pin> pins, ulong pinnedPieces, ulong checkFilter, ulong attMask, bool inCheck, int checkingPawn)
         {
             List<Move> psuedoLegal = new List<Move>();
 
@@ -540,7 +547,7 @@ namespace ChessAgain.Engine
                 {
                     if (move.moveFlag == MoveFlag.KingCastle)
                     {
-                        if (!canCastle) { continue; }
+                        if (!canCastle || inCheck) { continue; }
 
                         if (move.toSqr > move.fromSqr)
                         {
@@ -548,7 +555,7 @@ namespace ChessAgain.Engine
                             {
                                 UInt64 blockingMask = castleSideMasks[sideToMove, 0] & combined;
 
-                                if (blockingMask == 0 && ((attMask & castleSideMasks[sideToMove, 0]) == 0))
+                                if (blockingMask == 0 && ((attMask & castleSideAttMasks[sideToMove, 0]) == 0))
                                 {
                                     psuedoLegal.Add(move);
                                 }
@@ -557,13 +564,13 @@ namespace ChessAgain.Engine
                     }
                     else if (move.moveFlag == MoveFlag.QueenCastle)
                     {
-                        if (!canCastle) { continue; }
+                        if (!canCastle || inCheck) { continue; }
 
                         if ((sideRights & queenSide) > 0)
                         {
                             UInt64 blockingMask = castleSideMasks[sideToMove, 1] & combined;
 
-                            if (blockingMask == 0 && ((attMask & castleSideMasks[sideToMove, 1]) == 0))
+                            if (blockingMask == 0 && ((attMask & castleSideAttMasks[sideToMove, 1]) == 0))
                             {
                                 psuedoLegal.Add(move);
                             }
@@ -614,6 +621,7 @@ namespace ChessAgain.Engine
                 {
                     foreach (Pin pin in pins)
                     {
+                        if (pin.doublePawnPin) { continue;  }
                         if (((1ul << pawnSquare) & pin.pinLine) > 0)
                         {
                             moveFilter = pin.pinLine;
@@ -633,11 +641,6 @@ namespace ChessAgain.Engine
                     useFilter = true;
                 }
 
-                if (useFilter)
-                {
-                    Console.WriteLine(PreProcess.squareNames[pawnSquare]);
-                }
-
                 List<Move> theoretical = PreProcess.pawnMoves[sideToMove, pawnSquare];
 
                 foreach(Move move in theoretical)
@@ -650,7 +653,10 @@ namespace ChessAgain.Engine
                     {
                         if (((1ul << move.toSqr) & moveFilter) == 0)
                         {
-                            continue;
+                            if (!(move.moveFlag == MoveFlag.EnPassant && checkingPawn == (move.toSqr - upOffset)))
+                            {
+                                continue;
+                            }    
                         }
                     }
 
@@ -710,7 +716,22 @@ namespace ChessAgain.Engine
                     {
                         if (move.toSqr == enPassantSquare)
                         {
-                            psuedoLegal.Add(move);
+                            bool anyInvalid = false;
+
+                            foreach (Pin pin in pins)
+                            {
+                                if (!pin.doublePawnPin) { continue; }
+                                if (((1ul << pawnSquare) & pin.pinLine) > 0)
+                                {
+                                    anyInvalid = true;
+                                    break;
+                                }
+                            }
+
+                            if (!anyInvalid)
+                            {
+                                psuedoLegal.Add(move);
+                            }
                         }
                     }
                 }
@@ -725,6 +746,7 @@ namespace ChessAgain.Engine
                 {
                     foreach (Pin pin in pins)
                     {
+                        if (pin.doublePawnPin) { continue; }
                         if (((1ul << knightSquare) & pin.pinLine) > 0)
                         {
                             moveFilter = pin.pinLine;
@@ -795,6 +817,7 @@ namespace ChessAgain.Engine
                 {
                     foreach (Pin pin in pins)
                     {
+                        if (pin.doublePawnPin) { continue; }
                         if (((1ul << bishopSquare) & pin.pinLine) > 0)
                         {
                             moveFilter = pin.pinLine;
@@ -827,15 +850,20 @@ namespace ChessAgain.Engine
                             break;
                         }
 
+                        bool enemyAtTo = (sideBitboards[otherSide] & (one << move.toSqr)) > 0;
+
                         if (useFilter)
                         {
                             if (((1ul << move.toSqr) & moveFilter) == 0)
                             {
+                                if (enemyAtTo)
+                                {
+                                    break;
+                                }
+
                                 continue;
                             }
                         }
-
-                        bool enemyAtTo = (sideBitboards[otherSide] & (one << move.toSqr)) > 0;
 
                         if (enemyAtTo)
                         {
@@ -869,6 +897,7 @@ namespace ChessAgain.Engine
                 {
                     foreach (Pin pin in pins)
                     {
+                        if (pin.doublePawnPin) { continue; }
                         if (((1ul << rookSquare) & pin.pinLine) > 0)
                         {
                             moveFilter = pin.pinLine;
@@ -901,15 +930,20 @@ namespace ChessAgain.Engine
                             break;
                         }
 
+                        bool enemyAtTo = (sideBitboards[otherSide] & (one << move.toSqr)) > 0;
+
                         if (useFilter)
                         {
                             if (((1ul << move.toSqr) & moveFilter) == 0)
                             {
+                                if (enemyAtTo)
+                                {
+                                    break;
+                                }
+
                                 continue;
                             }
                         }
-
-                        bool enemyAtTo = (sideBitboards[otherSide] & (one << move.toSqr)) > 0;
 
                         if (enemyAtTo)
                         {
@@ -943,6 +977,7 @@ namespace ChessAgain.Engine
                 {
                     foreach (Pin pin in pins)
                     {
+                        if (pin.doublePawnPin) { continue; }
                         if (((1ul << queenSquare) & pin.pinLine) > 0)
                         {
                             moveFilter = pin.pinLine;
@@ -975,15 +1010,20 @@ namespace ChessAgain.Engine
                             break;
                         }
 
+                        bool enemyAtTo = (sideBitboards[otherSide] & (one << move.toSqr)) > 0;
+
                         if (useFilter)
                         {
                             if (((1ul << move.toSqr) & moveFilter) == 0)
                             {
+                                if (enemyAtTo)
+                                {
+                                    break;
+                                }
+
                                 continue;
                             }
                         }
-
-                        bool enemyAtTo = (sideBitboards[otherSide] & (one << move.toSqr)) > 0;
 
                         if (enemyAtTo)
                         {
@@ -1011,7 +1051,7 @@ namespace ChessAgain.Engine
             return psuedoLegal;
         }
 
-        public UInt64 GetAttackedBitboard(int sideToMove, int ekingSquare, ref int checkerCount, ref List<Pin> pins, ref ulong pinnedPieces, ref ulong checkFilter)
+        public UInt64 GetAttackedBitboard(int sideToMove, int ekingSquare, ref int checkerCount, ref List<Pin> pins, ref ulong pinnedPieces, ref ulong checkFilter, ref int checkingPawn)
         {
             UInt64 allMoves = 0;
             UInt64 combined = sideBitboards[0] | sideBitboards[1];
@@ -1027,6 +1067,7 @@ namespace ChessAgain.Engine
                     if (move.toSqr == ekingSquare)
                     {
                         checkFilter |= (one << move.fromSqr);
+                        checkingPawn = pawnSquare;
                         checkerCount++;
                     }
 
@@ -1061,6 +1102,9 @@ namespace ChessAgain.Engine
                 }
             }
 
+            ulong combinedPawns = (board[1, pawnIndex].rep | board[0, pawnIndex].rep);
+            ulong kingSquareBB = 1ul << ekingSquare;
+
             foreach (int bishopSquare in board[sideToMove, bishopIndex].piecePositions)
             {
                 ulong betweenBits = PreProcess.bishopInBetweenBits[bishopSquare, ekingSquare];
@@ -1068,6 +1112,8 @@ namespace ChessAgain.Engine
                 if (betweenBits != 0)
                 {
                     int bitCount = BitOp.MultipleBits(betweenBits & combined);
+
+                    betweenBits |= (1ul << bishopSquare);
 
                     if (bitCount == 1)
                     {
@@ -1115,12 +1161,22 @@ namespace ChessAgain.Engine
                 if (betweenBits != 0)
                 {
                     int bitCount = BitOp.MultipleBits(betweenBits & combined);
+                    int pawnBitCount = BitOp.MultipleBits(betweenBits & combinedPawns);
+
+                    betweenBits |= (1ul << rookSquare);
+
+                    bool isHorizontal = Math.Floor((float)rookSquare / 8) == Math.Floor((float)ekingSquare / 8);
 
                     if (bitCount == 1)
                     {
                         checkFilter |= betweenBits;
                     }
-                    else if (bitCount == 2)
+
+                    if (pawnBitCount == 2 && bitCount == 3 && isHorizontal)
+                    {
+                        pins.Add(Move.MakePin(rookSquare, betweenBits, true));
+                    }
+                    if (bitCount == 2)
                     {
                         pinnedPieces |= betweenBits;
                         pins.Add(Move.MakePin(rookSquare, betweenBits));
@@ -1163,12 +1219,22 @@ namespace ChessAgain.Engine
                 if (betweenBits != 0)
                 {
                     int bitCount = BitOp.MultipleBits(betweenBits & combined);
+                    int pawnBitCount = BitOp.MultipleBits(betweenBits & combinedPawns);
+
+                    betweenBits |= (1ul << queenSquare);
+
+                    bool isHorizontal = Math.Floor((float)queenSquare / 8) == Math.Floor((float)ekingSquare / 8);
 
                     if (bitCount == 1)
                     {
                         checkFilter |= betweenBits;
                     }
-                    else if (bitCount == 2)
+
+                    if (pawnBitCount == 2 && bitCount == 3 && isHorizontal)
+                    {
+                        pins.Add(Move.MakePin(queenSquare, betweenBits, true));
+                    }
+                    if (bitCount == 2)
                     {
                         pinnedPieces |= betweenBits;
                         pins.Add(Move.MakePin(queenSquare, betweenBits));

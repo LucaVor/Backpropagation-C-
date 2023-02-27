@@ -368,51 +368,65 @@ namespace ChessAgain.Engine
                     int x = dirOffsets[i, 0];
                     int y = dirOffsets[i, 1];
 
-                    int currSquare = sqr + x + y * 8;
+                    int currSquare = Add(sqr, x, y);
+
+                    if (currSquare == -1)
+                    {
+                        continue;
+                    }
+
                     int distance = 0;
                     ulong between = (1ul << sqr);
 
                     while (true)
                     {
-                        if (currSquare < 0 || currSquare > 63)
-                        {
-                            break;
-                        }
-
-                        if (x < 0)
-                        {
-                            if ((currSquare % 8) > (sqr % 8))
-                            {
-                                break;
-                            }
-                        }
-                        if (x > 0)
-                        {
-                            if ((currSquare % 8) < (sqr % 8))
-                            {
-                                break;
-                            }
-                        }
-
                         distance += 1;
 
-                        queenInBetweenBits[sqr, currSquare] = between;
+                        between |= (1ul << currSquare);
+
+                        queenInBetweenBits[sqr, currSquare] = between - (between & (1ul << sqr));
 
                         if (i < 4)
                         {
-                            rookInBetweenBits[sqr, currSquare] = between;   
-                        } if (i > 3)
+                            rookInBetweenBits[sqr, currSquare] = between - (between & (1ul << sqr));
+                        }
+                        if (i > 3)
                         {
-                            bishopInBetweenBits[sqr, currSquare] = between;
+                            bishopInBetweenBits[sqr, currSquare] = between - (between & (1ul << sqr));
                         }
 
-                        between |= (1ul << currSquare);
-                        currSquare += (x + y * 8);
-                    }
+                        currSquare = Add(currSquare, x, y);
 
+                        if (currSquare == -1)
+                        {
+                            break;
+                        }
+                    }
                     edgeDistances[sqr, i] = distance;
                 }
             }
+        }
+
+        public static int Add(int sqr, int x, int y)
+        {
+            int technical = sqr + x + y * 8;
+
+            if (sqr >= 56 && y > 0)
+            {
+                return -1;
+            }
+            if (sqr <= 7 && y < 0)
+            {
+                return -1;
+            } if ((sqr % 8) == 0 && x < 0)
+            {
+                return -1;
+            } if ((sqr % 8) == 7 && x > 0)
+            {
+                return -1;
+            }
+
+            return technical;
         }
     }
 }

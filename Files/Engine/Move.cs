@@ -61,6 +61,7 @@ namespace ChessAgain.Engine
     {
         public int piecePinning;
         public ulong pinLine;
+        public bool doublePawnPin;
     }
 
     public class Move
@@ -80,9 +81,9 @@ namespace ChessAgain.Engine
             return new Move() { fromSqr = from, toSqr = to, moveFlag = flag, promotionPiece = _promotionPiece, pieceCaptured = _pieceCaptured, pieceMoved=pieceMoved };
         }
 
-        public static Pin MakePin(int piecePinning, ulong pinLine)
+        public static Pin MakePin(int piecePinning, ulong pinLine, bool doublePawnPin = false)
         {
-            return new Pin() { piecePinning = piecePinning, pinLine = pinLine };
+            return new Pin() { piecePinning = piecePinning, pinLine = pinLine, doublePawnPin = doublePawnPin };
         }
 
         public static Move Copy(Move move)
